@@ -38,14 +38,15 @@ func (r *RabbitmqClusterReconciler) scaleDown(ctx context.Context, cluster *v1be
 	}
 	if currentReplicas == 0 && desiredReplicas > 0 {
 		if v, ok := cluster.Annotations[beforeZeroReplicasConfigured]; ok {
-			beforeZeroReplicas, err := strconv.Atoi(v)
+			beforeZeroReplicas64, err := strconv.ParseInt(v, 10, 32)
 			if err != nil {
 				msg := "Failed to convert string to integer for before-zero-replicas-configuration annotation"
-				reason := "TranformErrorOperation"
+				reason := "TransformErrorOperation"
 				logger.Error(errors.New(reason), msg)
 			}
 
-			if int32(beforeZeroReplicas) > desiredReplicas {
+			beforeZeroReplicas := int32(beforeZeroReplicas64)
+			if beforeZeroReplicas > desiredReplicas {
 				msg := fmt.Sprintf("Cluster Scale down not supported; tried to scale cluster from %d nodes (configured before zero) to %d nodes", int32(beforeZeroReplicas), desiredReplicas)
 				reason := "UnsupportedOperation"
 				logger.Error(errors.New(reason), msg)

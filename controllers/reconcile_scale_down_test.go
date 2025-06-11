@@ -122,7 +122,7 @@ var _ = Describe("Cluster scale to zero", func() {
 				sts, err := clientSet.AppsV1().StatefulSets(defaultNamespace).Get(ctx, cluster.ChildResourceName("server"), metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
 				return *sts.Spec.Replicas
-			}, 10, 1).Should(Equal(int32(0)))
+			}, 10, 0).Should(Equal(int32(0)))
 		})
 
 		By("setting ReconcileSuccess to 'true'", func() {

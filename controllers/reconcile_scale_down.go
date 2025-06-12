@@ -26,7 +26,7 @@ func (r *RabbitmqClusterReconciler) scaleDown(ctx context.Context, cluster *v1be
 	currentReplicas := *current.Spec.Replicas
 	desiredReplicas := *sts.Spec.Replicas
 
-	if desiredReplicas == 0 {
+	if desiredReplicas == 0 && currentReplicas > 0 {
 		msg := "Cluster Scale down to 0 replicas."
 		reason := "ScaleDownToZero"
 		logger.Info(msg)

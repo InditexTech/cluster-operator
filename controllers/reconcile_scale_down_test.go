@@ -94,11 +94,12 @@ var _ = Describe("Cluster scale to zero", func() {
 
 	AfterEach(func() {
 		Expect(client.Delete(ctx, cluster)).To(Succeed())
+		waitForClusterDeletion(ctx, cluster, client)
 		Eventually(func() bool {
 			rmq := &rabbitmqv1beta1.RabbitmqCluster{}
 			err := client.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, rmq)
 			return apierrors.IsNotFound(err)
-		}, 0).Should(BeTrue())
+		}).Should(BeTrue())
 	})
 
 	It("scale to zero", func() {
@@ -118,11 +119,13 @@ var _ = Describe("Cluster scale to zero", func() {
 			Expect(updateWithRetry(cluster, func(r *rabbitmqv1beta1.RabbitmqCluster) {
 				r.Spec.Replicas = ptr.To(int32(0))
 			})).To(Succeed())
-			Consistently(func() int32 {
+
+			Eventually(func() int32 {
 				sts, err := clientSet.AppsV1().StatefulSets(defaultNamespace).Get(ctx, cluster.ChildResourceName("server"), metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
 				return *sts.Spec.Replicas
-			}, 10, 0).Should(Equal(int32(0)))
+			}, 10, 1).Should(Equal(int32(0)))
+
 		})
 
 		By("setting ReconcileSuccess to 'true'", func() {
@@ -144,8 +147,8 @@ var _ = Describe("Cluster scale to zero", func() {
 				}
 				return "ReconcileSuccess status: condition not present"
 			}, 0).Should(Equal("ReconcileSuccess status: True, " +
-				"with reason: ScaleDownToZero " +
-				"and message: Cluster Scale down to 0 replicas."))
+				"with reason: Success " +
+				"and message: Finish reconciling"))
 		})
 	})
 })

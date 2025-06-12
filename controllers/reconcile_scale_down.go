@@ -36,6 +36,7 @@ func (r *RabbitmqClusterReconciler) scaleDown(ctx context.Context, cluster *v1be
 		r.Recorder.Event(cluster, corev1.EventTypeNormal, reason, msg)
 		return false
 	}
+
 	if currentReplicas == 0 && desiredReplicas > 0 {
 		if v, ok := cluster.Annotations[beforeZeroReplicasConfigured]; ok {
 			beforeZeroReplicas64, err := strconv.ParseInt(v, 10, 32)
@@ -50,16 +51,20 @@ func (r *RabbitmqClusterReconciler) scaleDown(ctx context.Context, cluster *v1be
 				}
 				return true
 			}
-
-			beforeZeroReplicas := int32(beforeZeroReplicas64)
-			if beforeZeroReplicas > desiredReplicas {
-				r.scaleDownNotSupportedSetConditionsAndEvents(ctx, cluster, currentReplicas, desiredReplicas)
-				return true
-			}
+			currentReplicas = int32(beforeZeroReplicas64)
 		}
 	}
+
 	if currentReplicas > desiredReplicas {
-		r.scaleDownNotSupportedSetConditionsAndEvents(ctx, cluster, currentReplicas, desiredReplicas)
+		logger := ctrl.LoggerFrom(ctx)
+		msg := fmt.Sprintf("Cluster Scale down not supported; tried to scale cluster from %d nodes to %d nodes", currentReplicas, desiredReplicas)
+		reason := "UnsupportedOperation"
+		logger.Error(errors.New(reason), msg)
+		r.Recorder.Event(cluster, corev1.EventTypeWarning, reason, msg)
+		cluster.Status.SetCondition(status.ReconcileSuccess, corev1.ConditionFalse, reason, msg)
+		if statusErr := r.Status().Update(ctx, cluster); statusErr != nil {
+			logger.Error(statusErr, "Failed to update ReconcileSuccess condition state")
+		}
 		return true
 	}
 
@@ -71,16 +76,4 @@ func (r *RabbitmqClusterReconciler) scaleDown(ctx context.Context, cluster *v1be
 	}
 
 	return false
-}
-
-func (r *RabbitmqClusterReconciler) scaleDownNotSupportedSetConditionsAndEvents(ctx context.Context, cluster *v1beta1.RabbitmqCluster, currentReplicas, desiredReplicas int32) {
-	logger := ctrl.LoggerFrom(ctx)
-	msg := fmt.Sprintf("Cluster Scale down not supported; tried to scale cluster from %d nodes to %d nodes", currentReplicas, desiredReplicas)
-	reason := "UnsupportedOperation"
-	logger.Error(errors.New(reason), msg)
-	r.Recorder.Event(cluster, corev1.EventTypeWarning, reason, msg)
-	cluster.Status.SetCondition(status.ReconcileSuccess, corev1.ConditionFalse, reason, msg)
-	if statusErr := r.Status().Update(ctx, cluster); statusErr != nil {
-		logger.Error(statusErr, "Failed to update ReconcileSuccess condition state")
-	}
 }

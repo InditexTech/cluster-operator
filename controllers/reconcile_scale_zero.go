@@ -16,6 +16,7 @@ import (
 
 const beforeZeroReplicasConfigured = "rabbitmq.com/before-zero-replicas-configured"
 
+// scaleToZero checks if the desired replicas is zero and the current replicas is not zero.
 func (r *RabbitmqClusterReconciler) scaleToZero(current, sts *appsv1.StatefulSet) bool {
 	currentReplicas := *current.Spec.Replicas
 	desiredReplicas := *sts.Spec.Replicas
@@ -27,6 +28,7 @@ func (r *RabbitmqClusterReconciler) scaleToZero(current, sts *appsv1.StatefulSet
 	return false
 }
 
+// scaleFromZero checks if the current replicas is zero and the desired replicas is greater than zero.
 func (r *RabbitmqClusterReconciler) scaleFromZero(current, sts *appsv1.StatefulSet) bool {
 	currentReplicas := *current.Spec.Replicas
 	desiredReplicas := *sts.Spec.Replicas
@@ -38,6 +40,9 @@ func (r *RabbitmqClusterReconciler) scaleFromZero(current, sts *appsv1.StatefulS
 	return false
 }
 
+// saveReplicasBeforeZero saves the current replicas count in an annotation before scaling down to zero.
+// This is used to prevent scaling down from zero to a negative number.
+// It also records an event indicating the scale down operation.
 func (r *RabbitmqClusterReconciler) saveReplicasBeforeZero(ctx context.Context, cluster *v1beta1.RabbitmqCluster, current *appsv1.StatefulSet) error {
 	var err error
 	currentReplicas := *current.Spec.Replicas
@@ -52,6 +57,10 @@ func (r *RabbitmqClusterReconciler) saveReplicasBeforeZero(ctx context.Context, 
 	return err
 }
 
+// removeReplicasBeforeZero checks if the cluster is configured in zero to scale up.
+// If the annotation rabbitmq.com/before-zero-replicas-configured exists it will be deleted.
+// If the desired replicas is valid, it removes the annotation and returns nil.
+// This is used to ensure that the cluster does not scale down.
 func (r *RabbitmqClusterReconciler) removeReplicasBeforeZero(ctx context.Context, cluster *v1beta1.RabbitmqCluster, sts *appsv1.StatefulSet) error {
 	var err error
 	var beforeZeroReplicas int64

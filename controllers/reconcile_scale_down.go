@@ -16,11 +16,11 @@ import (
 // cluster scale down not supported
 // log error, publish warning event, and set ReconcileSuccess to false when scale down request detected
 func (r *RabbitmqClusterReconciler) scaleDown(ctx context.Context, cluster *v1beta1.RabbitmqCluster, current, sts *appsv1.StatefulSet) bool {
+	logger := ctrl.LoggerFrom(ctx)
+
 	currentReplicas := *current.Spec.Replicas
 	desiredReplicas := *sts.Spec.Replicas
-
 	if currentReplicas > desiredReplicas {
-		logger := ctrl.LoggerFrom(ctx)
 		msg := fmt.Sprintf("Cluster Scale down not supported; tried to scale cluster from %d nodes to %d nodes", currentReplicas, desiredReplicas)
 		reason := "UnsupportedOperation"
 		logger.Error(errors.New(reason), msg)
@@ -31,6 +31,5 @@ func (r *RabbitmqClusterReconciler) scaleDown(ctx context.Context, cluster *v1be
 		}
 		return true
 	}
-
 	return false
 }

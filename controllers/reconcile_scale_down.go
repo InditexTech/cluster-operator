@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -14,46 +13,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-const (
-	beforeZeroReplicasConfigured = "rabbitmq.com/before-zero-replicas-configured"
-)
-
 // cluster scale down not supported
 // log error, publish warning event, and set ReconcileSuccess to false when scale down request detected
 func (r *RabbitmqClusterReconciler) scaleDown(ctx context.Context, cluster *v1beta1.RabbitmqCluster, current, sts *appsv1.StatefulSet) bool {
-	logger := ctrl.LoggerFrom(ctx)
-
 	currentReplicas := *current.Spec.Replicas
 	desiredReplicas := *sts.Spec.Replicas
-
-	if desiredReplicas == 0 && currentReplicas > 0 {
-		msg := "Cluster Scale down to 0 replicas."
-		reason := "ScaleDownToZero"
-		logger.Info(msg)
-		if _, exists := cluster.Annotations[beforeZeroReplicasConfigured]; !exists {
-			r.updateAnnotation(ctx, cluster, cluster.Namespace, cluster.Name, beforeZeroReplicasConfigured, fmt.Sprint(currentReplicas))
-		}
-		r.Recorder.Event(cluster, corev1.EventTypeNormal, reason, msg)
-		return false
-	}
-
-	if currentReplicas == 0 && desiredReplicas > 0 {
-		if v, ok := cluster.Annotations[beforeZeroReplicasConfigured]; ok {
-			beforeZeroReplicas64, err := strconv.ParseInt(v, 10, 32)
-			if err != nil {
-				msg := "Failed to convert string to integer for before-zero-replicas-configuration annotation"
-				reason := "TransformErrorOperation"
-				logger.Error(errors.New(reason), msg)
-				r.Recorder.Event(cluster, corev1.EventTypeWarning, reason, msg)
-				cluster.Status.SetCondition(status.ReconcileSuccess, corev1.ConditionFalse, reason, msg)
-				if statusErr := r.Status().Update(ctx, cluster); statusErr != nil {
-					logger.Error(statusErr, "Failed to update ReconcileSuccess condition state")
-				}
-				return true
-			}
-			currentReplicas = int32(beforeZeroReplicas64)
-		}
-	}
 
 	if currentReplicas > desiredReplicas {
 		logger := ctrl.LoggerFrom(ctx)
@@ -66,13 +30,6 @@ func (r *RabbitmqClusterReconciler) scaleDown(ctx context.Context, cluster *v1be
 			logger.Error(statusErr, "Failed to update ReconcileSuccess condition state")
 		}
 		return true
-	}
-
-	if _, ok := cluster.Annotations[beforeZeroReplicasConfigured]; ok && desiredReplicas > 0 {
-		// if we have an annotation that indicates the cluster was configured before zero replicas,
-		// we should remove it to avoid confusion in the future
-		logger.Info("Removing annotation indicating cluster was configured before zero replicas")
-		r.deleteAnnotation(ctx, cluster, beforeZeroReplicasConfigured)
 	}
 
 	return false

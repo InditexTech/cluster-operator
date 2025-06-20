@@ -67,7 +67,7 @@ func (r *RabbitmqClusterReconciler) removeReplicasBeforeZero(ctx context.Context
 	logger := ctrl.LoggerFrom(ctx)
 	desiredReplicas := *sts.Spec.Replicas
 	if _, ok := cluster.Annotations[beforeZeroReplicasConfigured]; !ok {
-		return errors.New("rabbitmq.com/before-zero-replicas-configured annotation not found")
+		return nil
 	}
 
 	beforeZeroReplicas, err = strconv.ParseInt(cluster.Annotations[beforeZeroReplicasConfigured], 10, 32)

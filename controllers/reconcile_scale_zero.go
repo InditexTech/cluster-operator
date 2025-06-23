@@ -62,15 +62,21 @@ func (r *RabbitmqClusterReconciler) removeReplicasBeforeZero(ctx context.Context
 	if err != nil {
 		msg := "Failed to convert string to integer for before-zero-replicas-configuration annotation"
 		reason := "TransformErrorOperation"
-		err = r.recordEventsAndSetCondition(ctx, cluster, corev1.EventTypeWarning, reason, msg, status.ReconcileSuccess, corev1.ConditionFalse)
-		return err
+		err = r.recordEventsAndSetCondition(ctx, cluster, status.ReconcileSuccess, corev1.ConditionFalse, corev1.EventTypeWarning, reason, msg)
+		if err != nil {
+			return err
+		}
+		return errors.New(msg)
 	}
 
 	if desiredReplicas < int32(beforeZeroReplicas) {
 		msg := fmt.Sprintf("Cluster Scale down not supported; tried to scale cluster from %d nodes to %d nodes", int32(beforeZeroReplicas), desiredReplicas)
 		reason := "UnsupportedOperation"
-		err = r.recordEventsAndSetCondition(ctx, cluster, corev1.EventTypeWarning, reason, msg, status.ReconcileSuccess, corev1.ConditionFalse)
-		return err
+		err = r.recordEventsAndSetCondition(ctx, cluster, status.ReconcileSuccess, corev1.ConditionFalse, corev1.EventTypeWarning, reason, msg)
+		if err != nil {
+			return err
+		}
+		return errors.New(msg)
 	}
 
 	err = r.deleteAnnotation(ctx, cluster, beforeZeroReplicasConfigured)
@@ -78,7 +84,7 @@ func (r *RabbitmqClusterReconciler) removeReplicasBeforeZero(ctx context.Context
 
 }
 
-func (r *RabbitmqClusterReconciler) recordEventsAndSetCondition(ctx context.Context, cluster *v1beta1.RabbitmqCluster, eventType, reason, msg string, condType status.RabbitmqClusterConditionType, condStatus corev1.ConditionStatus) error {
+func (r *RabbitmqClusterReconciler) recordEventsAndSetCondition(ctx context.Context, cluster *v1beta1.RabbitmqCluster, condType status.RabbitmqClusterConditionType, condStatus corev1.ConditionStatus, eventType, reason, msg string) error {
 	logger := ctrl.LoggerFrom(ctx)
 	var statusErr error
 	logger.Error(errors.New(reason), msg)

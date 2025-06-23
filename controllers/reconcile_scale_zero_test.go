@@ -154,7 +154,7 @@ var _ = Describe("Cluster scale from zero", func() {
 	})
 })
 
-var _ = Describe("Cluster scale from zero to less replicas configured", func() {
+var _ = Describe("Cluster scale from zero to less replicas configured", Ordered, func() {
 	var (
 		cluster          *rabbitmqv1beta1.RabbitmqCluster
 		defaultNamespace = "default"

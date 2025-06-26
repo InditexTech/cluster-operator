@@ -213,10 +213,11 @@ func (r *RabbitmqClusterReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 					}
 				}
 				if r.scaleFromZero(current, sts) {
-					err := r.removeReplicasBeforeZero(ctx, rabbitmqCluster, sts)
-					if err != nil {
-						return ctrl.Result{}, err
+					if r.scaleDownFromZero(ctx, rabbitmqCluster, sts) {
+						// return when cluster scale down from zero detected; unsupported operation
+						return ctrl.Result{}, nil
 					}
+					r.removeReplicasBeforeZeroAnnotationIfExists(ctx, rabbitmqCluster)
 				}
 			}
 
